@@ -93,6 +93,14 @@ class _PdfPaginatorScreenState extends State<PdfPaginatorScreen> {
             setState(() {
               _paginationData = const JsonEncoder.withIndent('  ').convert(data['payload']);
             });
+          } else if (data['type'] == 'zoomChanged') {
+            // Update zoom level from HTML controls
+            setState(() {
+              _zoomLevel = data['zoom'].toDouble();
+            });
+          } else if (data['type'] == 'requestPopout') {
+            // Handle pop-out request from HTML
+            _openPopup();
           }
         } catch (e) {
           // Handle non-JSON messages
