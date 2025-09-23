@@ -3,12 +3,52 @@ import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 
 /// Controller for managing PDF pagination functionality
+/// Configuration object for PDF paginator settings
+class PdfPaginatorConfig {
+  final double marginTop;
+  final double marginBottom;
+  final double marginLeft;
+  final double marginRight;
+  final double fontSize;
+  final double lineHeight;
+  final double liLineHeight;
+  final String backgroundColor;
+  final String pageBackgroundColor;
+
+  const PdfPaginatorConfig({
+    this.marginTop = 20.0,
+    this.marginBottom = 20.0,
+    this.marginLeft = 20.0,
+    this.marginRight = 20.0,
+    this.fontSize = 12.0,
+    this.lineHeight = 1.5,
+    this.liLineHeight = 1.5,
+    this.backgroundColor = '#f5f5f5',
+    this.pageBackgroundColor = '#ffffff',
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'marginTop': marginTop,
+      'marginBottom': marginBottom,
+      'marginLeft': marginLeft,
+      'marginRight': marginRight,
+      'fontSize': fontSize,
+      'lineHeight': lineHeight,
+      'liLineHeight': liLineHeight,
+      'backgroundColor': backgroundColor,
+      'pageBackgroundColor': pageBackgroundColor,
+    };
+  }
+}
+
 class PdfPaginatorController extends ChangeNotifier {
   String _htmlContent = '';
   double _zoomLevel = 1.0;
   List<Map<String, dynamic>> _pageBreaks = [];
   bool _isLoading = true;
   html.WindowBase? _popupWindow;
+  PdfPaginatorConfig _config = const PdfPaginatorConfig();
   bool _isPopupMode = false;
 
   // Getters
@@ -19,16 +59,28 @@ class PdfPaginatorController extends ChangeNotifier {
   bool get isPopupOpen => _isPopupMode && _popupWindow != null && !_popupWindow!.closed!;
   bool get hasPopupWindow => _popupWindow != null && !_popupWindow!.closed!;
   html.WindowBase? get popupWindow => _popupWindow;
+  PdfPaginatorConfig get config => _config;
 
   /// Set the HTML content for pagination
   void setText(String htmlContent) {
     _htmlContent = htmlContent;
     notifyListeners();
   }
-  
-  /// Internal method to notify content change without triggering loops
-  void _notifyContentChanged() {
-    notifyListeners();
+
+  /// Set HTML content
+  void setHtmlContent(String content) {
+    if (_htmlContent != content) {
+      _htmlContent = content;
+      notifyListeners();
+    }
+  }
+
+  /// Update configuration
+  void updateConfig(PdfPaginatorConfig newConfig) {
+    if (_config != newConfig) {
+      _config = newConfig;
+      notifyListeners();
+    }
   }
 
   /// Set the zoom level

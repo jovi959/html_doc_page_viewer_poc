@@ -37,6 +37,7 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
   String _lastHtmlContent = '';
   double _lastZoomLevel = 1.0;
   bool _lastPopupState = false;
+  PdfPaginatorConfig? _lastConfig;
   bool _iframeInitialized = false;
   int _forceInitAttempts = 0;
   static const int _maxForceInitAttempts = 5;
@@ -131,7 +132,12 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
           _lastZoomLevel = widget.controller.zoomLevel;
           _applyZoom();
         }
-        
+
+        if (widget.controller.config != _lastConfig) {
+          _lastConfig = widget.controller.config;
+          _updateConfig();
+        }
+
         // Check for popup open/close requests
         if (widget.controller.isPopupOpen != _lastPopupState) {
           _lastPopupState = widget.controller.isPopupOpen;
@@ -171,7 +177,7 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
         // Cancel timeout timer since iframe loaded successfully
         _initTimeoutTimer?.cancel();
         
-        // Send initial content and zoom after iframe loads, only once
+        // Send initial content, zoom, and config after iframe loads, only once
         Timer(const Duration(milliseconds: 500), () {
           if (!_disposed) {
             debugPrint('Sending initial content to iframe');
@@ -184,6 +190,10 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
             _sendMessageToIframe({
               'action': 'setZoom',
               'zoom': widget.controller.zoomLevel,
+            });
+            _sendMessageToIframe({
+              'action': 'updateConfig',
+              'config': widget.controller.config.toJson(),
             });
           }
         });
@@ -355,10 +365,27 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
     }
   }
 
+  void _updateConfig() {
+    if (_disposed || !_iframeInitialized) return;
+    
+    debugPrint('Updating config: ${widget.controller.config.toJson()}');
+    final message = {
+      'action': 'updateConfig',
+      'config': widget.controller.config.toJson(),
+    };
+
+    _sendMessageToIframe(message);
+    
+    if (widget.controller.isPopupOpen) {
+      _sendMessageToPopup(message);
+    }
+  }
 
   void _sendInitialDataToPopup() {
     if (!widget.controller.isPopupOpen) return;
 
+    debugPrint('Sending initial data to popup');
+    
     // Send HTML content
     if (widget.controller.htmlContent.isNotEmpty) {
       final contentMessage = {
@@ -367,6 +394,18 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
       };
       _sendMessageToPopup(contentMessage);
     }
+
+    // Send zoom level
+    _sendMessageToPopup({
+      'action': 'setZoom',
+      'zoom': widget.controller.zoomLevel,
+    });
+
+    // Send configuration
+    _sendMessageToPopup({
+      'action': 'updateConfig',
+      'config': widget.controller.config.toJson(),
+    });
 
     // Send current zoom level
     final zoomMessage = {
@@ -473,6 +512,13 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
           _sendMessageToIframe({
             'action': 'setZoom',
             'zoom': widget.controller.zoomLevel,
+          });
+
+          // Send current config
+          debugPrint('Sending config update to embedded iframe');
+          _sendMessageToIframe({
+            'action': 'updateConfig',
+            'config': widget.controller.config.toJson(),
           });
           
           // Force a re-pagination to ensure everything is up to date

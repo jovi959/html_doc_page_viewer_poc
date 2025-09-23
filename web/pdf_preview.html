@@ -11,15 +11,15 @@
          * The aspect ratio is similar to A4 paper.
          * 'overflow: hidden' is crucial for detecting when content exceeds the page boundary.
          */
-        .page {
-            width: 210mm;
-            height: 297mm;
-            /* UPDATED: Margins are now controlled by CSS variables */
-            padding: var(--page-padding-top, 20mm) var(--page-padding-right, 20mm) var(--page-padding-bottom, 20mm) var(--page-padding-left, 20mm);
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-            flex-shrink: 0; /* Prevents pages from shrinking in the flex container */
+            .page {
+                width: 210mm;
+                height: 297mm;
+                /* UPDATED: Margins are now controlled by CSS variables */
+                padding: var(--page-padding-top, 20mm) var(--page-padding-right, 20mm) var(--page-padding-bottom, 20mm) var(--page-padding-left, 20mm);
+                background-color: var(--page-background-color, white);
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                overflow: hidden;
+                flex-shrink: 0; /* Prevents pages from shrinking in the flex container */
             position: relative; /* For potential future use with headers/footers */
             box-sizing: border-box; /* Ensures padding is included in the height/width */
             /* UPDATED: Font size is now a variable */
@@ -268,19 +268,19 @@
         
         <div class="slider-group">
             <label for="margin-top-slider"><span>Top Margin</span><span id="margin-top-value">20mm</span></label>
-            <input type="range" id="margin-top-slider" min="5" max="40" value="20">
+            <input type="range" id="margin-top-slider" min="5" max="200" value="20">
         </div>
         <div class="slider-group">
             <label for="margin-bottom-slider"><span>Bottom Margin</span><span id="margin-bottom-value">20mm</span></label>
-            <input type="range" id="margin-bottom-slider" min="5" max="40" value="20">
+            <input type="range" id="margin-bottom-slider" min="5" max="200" value="20">
         </div>
         <div class="slider-group">
             <label for="margin-left-slider"><span>Left Margin</span><span id="margin-left-value">20mm</span></label>
-            <input type="range" id="margin-left-slider" min="5" max="40" value="20">
+            <input type="range" id="margin-left-slider" min="5" max="200" value="20">
         </div>
         <div class="slider-group">
             <label for="margin-right-slider"><span>Right Margin</span><span id="margin-right-value">20mm</span></label>
-            <input type="range" id="margin-right-slider" min="5" max="40" value="20">
+            <input type="range" id="margin-right-slider" min="5" max="200" value="20">
         </div>
         <hr class="my-6">
         <div class="slider-group">
@@ -1225,6 +1225,96 @@
                 // Force a complete refresh to reset any problematic state
                 forceRefreshPagination();
             };
+
+            function updateConfiguration(config) {
+                if (!config) return;
+                
+                console.log('Applying configuration:', config);
+                
+                // Update CSS variables for margins
+                if (typeof config.marginTop === 'number') {
+                    document.documentElement.style.setProperty('--page-padding-top', `${config.marginTop}mm`);
+                    const marginTopSlider = document.getElementById('margin-top-slider');
+                    const marginTopValue = document.getElementById('margin-top-value');
+                    if (marginTopSlider && marginTopValue) {
+                        marginTopSlider.value = config.marginTop;
+                        marginTopValue.textContent = `${config.marginTop}mm`;
+                    }
+                }
+                
+                if (typeof config.marginBottom === 'number') {
+                    document.documentElement.style.setProperty('--page-padding-bottom', `${config.marginBottom}mm`);
+                    const marginBottomSlider = document.getElementById('margin-bottom-slider');
+                    const marginBottomValue = document.getElementById('margin-bottom-value');
+                    if (marginBottomSlider && marginBottomValue) {
+                        marginBottomSlider.value = config.marginBottom;
+                        marginBottomValue.textContent = `${config.marginBottom}mm`;
+                    }
+                }
+                
+                if (typeof config.marginLeft === 'number') {
+                    document.documentElement.style.setProperty('--page-padding-left', `${config.marginLeft}mm`);
+                    const marginLeftSlider = document.getElementById('margin-left-slider');
+                    const marginLeftValue = document.getElementById('margin-left-value');
+                    if (marginLeftSlider && marginLeftValue) {
+                        marginLeftSlider.value = config.marginLeft;
+                        marginLeftValue.textContent = `${config.marginLeft}mm`;
+                    }
+                }
+                
+                if (typeof config.marginRight === 'number') {
+                    document.documentElement.style.setProperty('--page-padding-right', `${config.marginRight}mm`);
+                    const marginRightSlider = document.getElementById('margin-right-slider');
+                    const marginRightValue = document.getElementById('margin-right-value');
+                    if (marginRightSlider && marginRightValue) {
+                        marginRightSlider.value = config.marginRight;
+                        marginRightValue.textContent = `${config.marginRight}mm`;
+                    }
+                }
+                
+                // Update font settings
+                if (typeof config.fontSize === 'number') {
+                    document.documentElement.style.setProperty('--page-font-size', `${config.fontSize}px`);
+                    const fontSizeSlider = document.getElementById('font-size-slider');
+                    const fontSizeValue = document.getElementById('font-size-value');
+                    if (fontSizeSlider && fontSizeValue) {
+                        fontSizeSlider.value = config.fontSize;
+                        fontSizeValue.textContent = `${config.fontSize}px`;
+                    }
+                }
+                
+                if (typeof config.lineHeight === 'number') {
+                    document.documentElement.style.setProperty('--page-line-height', config.lineHeight.toString());
+                    const lineHeightSlider = document.getElementById('line-height-slider');
+                    const lineHeightValue = document.getElementById('line-height-value');
+                    if (lineHeightSlider && lineHeightValue) {
+                        lineHeightSlider.value = config.lineHeight;
+                        lineHeightValue.textContent = config.lineHeight.toString();
+                    }
+                }
+                
+                if (typeof config.liLineHeight === 'number') {
+                    document.documentElement.style.setProperty('--page-li-line-height', config.liLineHeight.toString());
+                    const liLineHeightSlider = document.getElementById('li-line-height-slider');
+                    const liLineHeightValue = document.getElementById('li-line-height-value');
+                    if (liLineHeightSlider && liLineHeightValue) {
+                        liLineHeightSlider.value = config.liLineHeight;
+                        liLineHeightValue.textContent = config.liLineHeight.toString();
+                    }
+                }
+                
+                // Update background colors
+                if (typeof config.backgroundColor === 'string') {
+                    document.body.style.backgroundColor = config.backgroundColor;
+                }
+                
+                if (typeof config.pageBackgroundColor === 'string') {
+                    document.documentElement.style.setProperty('--page-background-color', config.pageBackgroundColor);
+                }
+                
+                // Re-paginate after configuration changes
+                paginateContent();
+            }
             
             /**
              * Force refresh pagination with state reset
@@ -1318,6 +1408,9 @@
                         // Adjust container width to prevent horizontal scrolling
                         const containerWidth = 100 / currentZoom;
                         pageContainer.style.width = `${containerWidth}%`;
+                    } else if (data.action === 'updateConfig') {
+                        console.log('Updating config:', data.config);
+                        updateConfiguration(data.config);
                     }
                 } catch (e) {
                     // Ignore non-JSON messages

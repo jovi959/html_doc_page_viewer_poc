@@ -226,6 +226,60 @@ class _PdfPaginatorScreenState extends State<PdfPaginatorScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  
+                  // Configuration controls
+                  const Text('Background Color:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => _pdfController.updateConfig(
+                          PdfPaginatorConfig(
+                            marginTop: _pdfController.config.marginTop,
+                            marginBottom: _pdfController.config.marginBottom,
+                            marginLeft: _pdfController.config.marginLeft,
+                            marginRight: _pdfController.config.marginRight,
+                            fontSize: _pdfController.config.fontSize,
+                            backgroundColor: '#f0f0f0', // Light gray
+                            pageBackgroundColor: _pdfController.config.pageBackgroundColor,
+                          ),
+                        ),
+                        child: const Text('Gray'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _pdfController.updateConfig(
+                          PdfPaginatorConfig(
+                            marginTop: _pdfController.config.marginTop,
+                            marginBottom: _pdfController.config.marginBottom,
+                            marginLeft: _pdfController.config.marginLeft,
+                            marginRight: _pdfController.config.marginRight,
+                            fontSize: _pdfController.config.fontSize,
+                            backgroundColor: '#1a1a1a', // Dark
+                            pageBackgroundColor: _pdfController.config.pageBackgroundColor,
+                          ),
+                        ),
+                        child: const Text('Dark'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _pdfController.updateConfig(
+                          PdfPaginatorConfig(
+                            marginTop: _pdfController.config.marginTop,
+                            marginBottom: _pdfController.config.marginBottom,
+                            marginLeft: _pdfController.config.marginLeft,
+                            marginRight: _pdfController.config.marginRight,
+                            fontSize: _pdfController.config.fontSize,
+                            backgroundColor: '#ffffff', // White
+                            pageBackgroundColor: _pdfController.config.pageBackgroundColor,
+                          ),
+                        ),
+                        child: const Text('White'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
                   const Text(
                     'Page Break Information:',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -292,7 +346,7 @@ class _PdfPaginatorScreenState extends State<PdfPaginatorScreen> {
                   Expanded(
                     child: PdfPaginatorWidget(
                       controller: _pdfController,
-                      backgroundColor: Colors.white,
+                      backgroundColor: Colors.grey,
                     ),
                   ),
                   const SizedBox(height: 8),
