@@ -296,6 +296,22 @@
             <label for="li-line-height-slider"><span>Line Height (li)</span><span id="li-line-height-value">1.5</span></label>
             <input type="range" id="li-line-height-slider" min="1.2" max="2.5" step="0.1" value="1.5">
         </div>
+        
+        <hr class="my-6">
+        
+        <!-- Pagination Status & Recovery -->
+        <div class="pagination-status mb-4">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Pagination Status</h3>
+            <div id="pagination-status-display" class="text-sm text-gray-600 mb-3">
+                ✅ Normal
+            </div>
+            <button id="force-refresh-btn" class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+                🔄 Force Refresh Pagination
+            </button>
+            <button id="reset-margins-btn" class="w-full bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 transition-colors mt-2">
+                ↩️ Reset to Default Margins
+            </button>
+        </div>
 
     </div>
 
@@ -391,25 +407,95 @@
                 settingsPanel.classList.toggle('open');
             });
 
-            function setupSlider(slider, valueLabel, cssVariable, unit) {
+            function setupSlider(slider, valueLabel, cssVariable, unit, isMargin = false) {
                 slider.addEventListener('input', () => {
                     const value = slider.value;
                     valueLabel.textContent = `${value}${unit}`;
                     root.style.setProperty(cssVariable, `${value}${unit}`);
+                    
+                    // Enhanced validation for margin sliders
+                    if (isMargin) {
+                        validateMarginSettings();
+                    }
                     
                     // Debounce pagination to prevent performance issues
                     clearTimeout(paginateTimeout);
                     paginateTimeout = setTimeout(paginateContent, 200);
                 });
             }
+            
+            function validateMarginSettings() {
+                const marginTop = parseFloat(marginTopSlider.value);
+                const marginBottom = parseFloat(marginBottomSlider.value);
+                const marginLeft = parseFloat(marginLeftSlider.value);
+                const marginRight = parseFloat(marginRightSlider.value);
+                
+                const totalVerticalMargin = marginTop + marginBottom;
+                const totalHorizontalMargin = marginLeft + marginRight;
+                
+                // Warn if margins are excessive
+                if (totalVerticalMargin > 60) {
+                    updatePaginationStatus('⚠️ High vertical margins may cause layout issues', 'warning');
+                } else if (totalHorizontalMargin > 60) {
+                    updatePaginationStatus('⚠️ High horizontal margins may cause layout issues', 'warning');
+                } else {
+                    updatePaginationStatus('✅ Normal', 'normal');
+                }
+            }
+            
+            function updatePaginationStatus(message, type) {
+                const statusDisplay = document.getElementById('pagination-status-display');
+                statusDisplay.textContent = message;
+                statusDisplay.className = `text-sm mb-3 ${
+                    type === 'error' ? 'text-red-600' : 
+                    type === 'warning' ? 'text-yellow-600' : 
+                    'text-gray-600'
+                }`;
+            }
 
-            setupSlider(marginTopSlider, marginTopValue, '--page-padding-top', 'mm');
-            setupSlider(marginBottomSlider, marginBottomValue, '--page-padding-bottom', 'mm');
-            setupSlider(marginLeftSlider, marginLeftValue, '--page-padding-left', 'mm');
-            setupSlider(marginRightSlider, marginRightValue, '--page-padding-right', 'mm');
+            setupSlider(marginTopSlider, marginTopValue, '--page-padding-top', 'mm', true);
+            setupSlider(marginBottomSlider, marginBottomValue, '--page-padding-bottom', 'mm', true);
+            setupSlider(marginLeftSlider, marginLeftValue, '--page-padding-left', 'mm', true);
+            setupSlider(marginRightSlider, marginRightValue, '--page-padding-right', 'mm', true);
             setupSlider(fontSizeSlider, fontSizeValue, '--page-font-size', 'px');
             setupSlider(lineHeightSlider, lineHeightValue, '--page-line-height', '');
             setupSlider(liLineHeightSlider, liLineHeightValue, '--page-li-line-height', '');
+            
+            // Recovery button event listeners
+            document.getElementById('force-refresh-btn').addEventListener('click', () => {
+                console.log('Manual force refresh triggered...');
+                updatePaginationStatus('🔄 Refreshing...', 'normal');
+                forceRefreshPagination();
+            });
+            
+            document.getElementById('reset-margins-btn').addEventListener('click', () => {
+                console.log('Resetting margins to defaults...');
+                
+                // Reset sliders to default values
+                marginTopSlider.value = 20;
+                marginBottomSlider.value = 20;
+                marginLeftSlider.value = 20;
+                marginRightSlider.value = 20;
+                
+                // Update displays
+                marginTopValue.textContent = '20mm';
+                marginBottomValue.textContent = '20mm';
+                marginLeftValue.textContent = '20mm';
+                marginRightValue.textContent = '20mm';
+                
+                // Update CSS variables
+                root.style.setProperty('--page-padding-top', '20mm');
+                root.style.setProperty('--page-padding-bottom', '20mm');
+                root.style.setProperty('--page-padding-left', '20mm');
+                root.style.setProperty('--page-padding-right', '20mm');
+                
+                updatePaginationStatus('✅ Margins reset to defaults', 'normal');
+                
+                // Force refresh pagination after reset
+                setTimeout(() => {
+                    forceRefreshPagination();
+                }, 100);
+            });
 
             // --- NEW: Floating Controls Event Listeners ---
             const zoomInBtn = document.getElementById('zoom-in-btn');
@@ -541,30 +627,64 @@
              */
             function paginateContent() {
                 console.log('--- Starting Pagination ---');
-                pageContainer.innerHTML = '';
-                logOutput.textContent = '';
                 
-                paginationLog = [];
-                currentPageNumber = 0;
+                try {
+                    // Store current zoom and reset to 100% for calculation
+                    const currentZoom = getCurrentZoomLevel();
+                    console.log(`Current zoom: ${currentZoom}, temporarily resetting to 100% for calculation`);
+                    pageContainer.style.transform = 'scale(1)';
+                    pageContainer.style.transformOrigin = 'top left';
+                    
+                    // Clear previous state
+                    pageContainer.innerHTML = '';
+                    logOutput.textContent = '';
+                    paginationLog = [];
+                    currentPageNumber = 0;
 
-                const pageHeight = getPageHeight();
+                    // Get logical page height at 100% zoom
+                    const pageHeight = getValidatedPageHeight();
+                    if (pageHeight === 0) {
+                        throw new Error("Could not determine valid page height");
+                    }
+                    
+                    // Validate input content
+                    const htmlContent = (htmlInput.value || '').trim();
+                    if (!htmlContent) {
+                        console.warn("No content to paginate");
+                        createNewPage(); // Create at least one empty page
+                        return;
+                    }
+                    
+                    // Create source container with validation
+                    const sourceContainer = document.createElement('div');
+                    try {
+                        sourceContainer.innerHTML = htmlContent;
+                    } catch (e) {
+                        console.error("Invalid HTML content:", e);
+                        throw new Error("Could not parse HTML content");
+                    }
+                    
+                    const sourceNodes = Array.from(sourceContainer.childNodes).filter(node => 
+                        node.nodeType === Node.ELEMENT_NODE || 
+                        (node.nodeType === Node.TEXT_NODE && node.textContent.trim())
+                    );
+                    
+                    if (sourceNodes.length === 0) {
+                        console.warn("No valid nodes found to paginate");
+                        createNewPage(); // Create at least one empty page
+                        return;
+                    }
 
-                if (pageHeight === 0) {
-                    console.error("Critical Error: Could not determine page height. Aborting pagination.");
-                    return;
-                }
-                
-                const sourceContainer = document.createElement('div');
-                sourceContainer.innerHTML = htmlInput.value;
-                const sourceNodes = Array.from(sourceContainer.childNodes);
-                if (sourceNodes.length === 0) return;
-
-                let currentPage = createNewPage();
-                let currentHeight = 0;
-                let lastNodeOnPage = null;
-                let originalHtmlContent = htmlInput.value;
-                let processedHtmlLength = 0;
-                console.log(`Available page height: ${pageHeight}px`);
+                    let currentPage = createNewPage();
+                    let currentHeight = 0;
+                    let lastNodeOnPage = null;
+                    let originalHtmlContent = htmlContent;
+                    let processedHtmlLength = 0;
+                    let iterationCount = 0;
+                    const maxIterations = sourceNodes.length * 3; // Safety limit
+                    
+                    console.log(`Available page height: ${pageHeight}px`);
+                    console.log(`Processing ${sourceNodes.length} nodes`);
 
 
                 for (let i = 0; i < sourceNodes.length; i++) {
@@ -577,18 +697,40 @@
                     let nodeToProcess = node.cloneNode(true);
                     let currentNodeHtmlIndex = processedHtmlLength;
                     
-                    while (nodeToProcess) {
+                    let nodeProcessingAttempts = 0;
+                    const maxNodeAttempts = 10; // Prevent infinite loops on a single node
+                    
+                    while (nodeToProcess && nodeProcessingAttempts < maxNodeAttempts) {
+                        iterationCount++;
+                        nodeProcessingAttempts++;
+                        
+                        // Safety check to prevent infinite loops
+                        if (iterationCount > maxIterations) {
+                            console.error(`Maximum iterations reached (${maxIterations}). Aborting pagination to prevent infinite loop.`);
+                            console.error(`Current node: <${node.tagName}>, Processing attempts: ${nodeProcessingAttempts}`);
+                            break;
+                        }
                         const nodeHeight = calculateNodeHeight(nodeToProcess, currentPage);
                         console.log(`Calculated node height: ${nodeHeight}px. Current filled height: ${currentHeight}px.`);
-
+                        
+                        // Additional validation for node height
+                        if (nodeHeight === 0 && nodeToProcess.textContent.trim()) {
+                            console.warn(`Node has content but zero height. Forcing minimal height.`);
+                            // Try to add it anyway, might be a measurement issue
+                        }
 
                         if (currentHeight + nodeHeight <= pageHeight) {
                             // The node fits on the current page
                             console.log('...Node fits. Adding to current page.');
-                            currentPage.appendChild(nodeToProcess);
-                            currentHeight += nodeHeight;
-                            lastNodeOnPage = nodeToProcess;
-                            nodeToProcess = null; // Mark as processed
+                            try {
+                                currentPage.appendChild(nodeToProcess);
+                                currentHeight += nodeHeight;
+                                lastNodeOnPage = nodeToProcess;
+                                nodeToProcess = null; // Mark as processed
+                            } catch (error) {
+                                console.error("Error appending node to page:", error);
+                                nodeToProcess = null; // Skip this node to prevent infinite loop
+                            }
                         } else {
                             // The node overflows
                             const overflowAmount = (currentHeight + nodeHeight) - pageHeight;
@@ -597,12 +739,29 @@
                             if (canSplitNode(nodeToProcess)) {
                                 const remainingHeight = pageHeight - currentHeight;
                                 console.log(`Node is splittable. Attempting to split with remaining height: ${remainingHeight}px`);
+                                
+                                // Ensure we have enough space to split
+                                if (remainingHeight < 20) {
+                                    console.log('Remaining height too small for splitting. Creating new page.');
+                                    const nextNode = nodeToProcess;
+                                    logPageBoundary(lastNodeOnPage, nextNode, currentPageNumber, 'Clean Boundary', currentNodeHtmlIndex);
+                                    currentPage = createNewPage();
+                                    currentHeight = 0;
+                                    lastNodeOnPage = null;
+                                    continue;
+                                }
+                                
                                 const { fittingPart, remainingPart } = splitNodeByHeight(nodeToProcess, remainingHeight, currentPage);
                                 
                                 if (fittingPart) {
                                     console.log('...Fitting part found. Adding to current page.');
-                                    currentPage.appendChild(fittingPart);
-                                    currentHeight += calculateNodeHeight(fittingPart, currentPage);
+                                    try {
+                                        currentPage.appendChild(fittingPart);
+                                        const fittingHeight = calculateNodeHeight(fittingPart, currentPage);
+                                        currentHeight += fittingHeight;
+                                    } catch (error) {
+                                        console.error("Error appending fitting part:", error);
+                                    }
                                 } else {
                                     console.log('...No fitting part could be created.');
                                 }
@@ -623,8 +782,13 @@
                                 console.log('Node is not splittable.');
                                 if (currentHeight === 0) {
                                     console.warn('...Element is too large for a single page. Forcing it onto the page.');
-                                    currentPage.appendChild(nodeToProcess);
-                                    nodeToProcess = null;
+                                    try {
+                                        currentPage.appendChild(nodeToProcess);
+                                        nodeToProcess = null;
+                                    } catch (error) {
+                                        console.error("Error forcing large element onto page:", error);
+                                        nodeToProcess = null; // Skip to prevent infinite loop
+                                    }
                                 } else {
                                     console.log('--- Creating New Page ---');
                                     // Log the clean boundary (no split, just page transition)
@@ -637,55 +801,170 @@
                             }
                         }
                     }
+                    
+                    // Check if we failed to process a node
+                    if (nodeProcessingAttempts >= maxNodeAttempts) {
+                        console.error(`Failed to process node after ${maxNodeAttempts} attempts. Skipping node:`, node);
+                    }
+                    
                     // Track processed HTML length for next iteration
-                    processedHtmlLength += node.outerHTML.length;
+                    try {
+                        processedHtmlLength += node.outerHTML.length;
+                    } catch (error) {
+                        console.warn("Could not track HTML length for node:", error);
+                    }
                 }
+                
+                // Final validation
+                if (pageContainer.children.length === 0) {
+                    console.warn("No pages were created. Creating empty page as fallback.");
+                    createNewPage();
+                }
+                
+                // Simple validation - no complex warning logic needed
+                const totalPages = pageContainer.children.length;
+                console.log(`Pagination complete: ${totalPages} pages created`);
+                
+                if (totalPages === 0) {
+                    console.warn("No pages were created, creating empty page");
+                    createNewPage();
+                }
+                
+                // Apply zoom AFTER pagination calculation is complete
+                if (currentZoom !== 1) {
+                    console.log(`Applying zoom ${currentZoom} after pagination calculation`);
+                    pageContainer.style.transform = `scale(${currentZoom})`;
+                    pageContainer.style.transformOrigin = 'top left';
+                    updateZoomDisplay();
+                }
+                
                 console.log('--- Pagination Complete ---');
+                console.log(`Total iterations: ${iterationCount}, Pages created: ${pageContainer.children.length}`);
 
                 const logJson = JSON.stringify(paginationLog, null, 2);
                 console.log('--- Pagination Log ---');
                 console.log(logJson);
                 logOutput.textContent = logJson;
+                
+                } catch (error) {
+                    console.error('Critical pagination error:', error);
+                    
+                    // Restore zoom even on error
+                    if (currentZoom !== 1) {
+                        pageContainer.style.transform = `scale(${currentZoom})`;
+                        pageContainer.style.transformOrigin = 'top left';
+                    }
+                    
+                    // Emergency fallback - create a single page with original content
+                    try {
+                        pageContainer.innerHTML = '';
+                        const emergencyPage = createNewPage();
+                        emergencyPage.innerHTML = `
+                            <div style="color: red; border: 2px solid red; padding: 10px; margin: 10px;">
+                                <h3>Pagination Error</h3>
+                                <p>An error occurred during pagination. Original content displayed below:</p>
+                            </div>
+                            <div>${htmlInput.value || ''}</div>
+                        `;
+                        
+                        // Set error message in log
+                        logOutput.textContent = JSON.stringify([{
+                            type: 'Error',
+                            message: 'Pagination failed: ' + error.message,
+                            timestamp: new Date().toISOString()
+                        }], null, 2);
+                        
+                    } catch (emergencyError) {
+                        console.error('Emergency fallback failed:', emergencyError);
+                        pageContainer.innerHTML = '<div style="color: red;">Critical Error: Unable to display content</div>';
+                        logOutput.textContent = 'Critical Error: Unable to display content';
+                    }
+                }
             }
             
             function getPageHeight() {
+                // ALWAYS measure at 100% zoom (no transform) to get the logical page height
                 const measurementPage = document.createElement('div');
                 measurementPage.className = 'page';
                 measurementPage.style.position = 'absolute';
                 measurementPage.style.left = '-9999px';
                 measurementPage.style.top = '-9999px';
                 measurementPage.style.visibility = 'hidden';
+                // NO transform applied - measure at 100% zoom
 
                 document.body.appendChild(measurementPage);
                 
                 const style = window.getComputedStyle(measurementPage);
-                // We need the clientHeight which is the inner height (content + padding)
-                // Then we subtract the padding to get the pure content height available.
-                const paddingTop = parseFloat(style.paddingTop);
-                const paddingBottom = parseFloat(style.paddingBottom);
+                const paddingTop = parseFloat(style.paddingTop) || 0;
+                const paddingBottom = parseFloat(style.paddingBottom) || 0;
+                const marginTop = parseFloat(style.marginTop) || 0;
+                const marginBottom = parseFloat(style.marginBottom) || 0;
+                
                 const height = measurementPage.clientHeight;
-
                 document.body.removeChild(measurementPage);
                 
-                // This correctly returns the available content area height
-                return height - paddingTop - paddingBottom;
+                // Calculate available content height accounting for padding and margins
+                let availableHeight = height - paddingTop - paddingBottom - marginTop - marginBottom;
+                
+                console.log(`Logical page height (100% zoom): ${availableHeight}px`);
+                
+                // Ensure we have a reasonable minimum height
+                const minHeight = 200;
+                return Math.max(availableHeight, minHeight);
             }
             
+            function getValidatedPageHeight() {
+                return getPageHeight();
+            }
+            
+            function getCurrentZoomLevel() {
+                // Extract zoom level from the page container's transform
+                const transform = pageContainer.style.transform;
+                if (transform && transform.includes('scale(')) {
+                    const scaleMatch = transform.match(/scale\(([^)]+)\)/);
+                    if (scaleMatch) {
+                        return parseFloat(scaleMatch[1]) || 1;
+                    }
+                }
+                return 1; // Default zoom level
+            }
+
             function calculateNodeHeight(node, page) {
-                const tempNode = node.cloneNode(true);
-                tempNode.style.visibility = 'hidden';
-                page.appendChild(tempNode);
+                if (!node || !page) {
+                    console.error("calculateNodeHeight: Invalid node or page");
+                    return 0;
+                }
+                
+                try {
+                    // ALWAYS measure at 100% zoom (no transform) to get logical height
+                    const tempNode = node.cloneNode(true);
+                    tempNode.style.visibility = 'hidden';
+                    tempNode.style.position = 'static';
+                    // NO transform applied - measure at 100% zoom
+                    
+                    page.appendChild(tempNode);
+                    tempNode.offsetHeight; // Force layout
+                    
+                    const style = window.getComputedStyle(tempNode);
+                    const marginTop = parseFloat(style.marginTop) || 0;
+                    const marginBottom = parseFloat(style.marginBottom) || 0;
+                    const elementHeight = tempNode.getBoundingClientRect().height || 0;
 
-                const style = window.getComputedStyle(tempNode);
-                const marginTop = parseFloat(style.marginTop);
-                const marginBottom = parseFloat(style.marginBottom);
-                // getBoundingClientRect().height includes padding and border, which is what we want
-                const elementHeight = tempNode.getBoundingClientRect().height;
+                    page.removeChild(tempNode);
 
-                page.removeChild(tempNode);
-
-                const totalHeight = marginTop + elementHeight + marginBottom;
-                return totalHeight;
+                    const totalHeight = marginTop + elementHeight + marginBottom;
+                    
+                    // Validate the calculated height
+                    if (isNaN(totalHeight) || totalHeight < 0 || totalHeight > 10000) {
+                        console.warn(`Suspicious node height calculated: ${totalHeight}px for node:`, node.tagName);
+                        return 0;
+                    }
+                    
+                    return totalHeight;
+                } catch (error) {
+                    console.error("Error calculating node height:", error, node);
+                    return 0;
+                }
             }
 
             function createNewPage() {
@@ -863,44 +1142,71 @@
 
 
             function splitListNode(node, availableHeight, page) {
-                const originalContent = node.cloneNode(true);
-                const listItems = Array.from(originalContent.children);
-                const fittingPart = node.cloneNode(false); // Create an empty <ul>
+                try {
+                    const originalContent = node.cloneNode(true);
+                    const listItems = Array.from(originalContent.children);
+                    
+                    if (listItems.length === 0) {
+                        console.warn('List node has no items to split');
+                        return { fittingPart: null, remainingPart: originalContent };
+                    }
+                    
+                    const fittingPart = node.cloneNode(false); // Create an empty <ul>
 
-                for (let i = listItems.length; i > 0; i--) {
-                    fittingPart.innerHTML = '';
-                    for (let j = 0; j < i; j++) {
-                        fittingPart.appendChild(listItems[j].cloneNode(true));
+                    // Validate available height
+                    if (availableHeight < 10) {
+                        console.warn('Available height too small for list splitting');
+                        return { fittingPart: null, remainingPart: originalContent };
                     }
 
-                    const tempHeight = calculateNodeHeight(fittingPart, page);
-                    console.log(`[split-ul] Testing with ${i} list items. Calculated height: ${tempHeight}px`);
+                    for (let i = listItems.length; i > 0; i--) {
+                        try {
+                            fittingPart.innerHTML = '';
+                            for (let j = 0; j < i; j++) {
+                                fittingPart.appendChild(listItems[j].cloneNode(true));
+                            }
 
-                    if (tempHeight <= availableHeight) {
-                        const remainingItems = listItems.slice(i);
-                        if (remainingItems.length === 0) {
-                            return { fittingPart: originalContent, remainingPart: null };
+                            const tempHeight = calculateNodeHeight(fittingPart, page);
+                            console.log(`[split-ul] Testing with ${i} list items. Calculated height: ${tempHeight}px`);
+
+                            if (tempHeight <= availableHeight && tempHeight > 0) {
+                                const remainingItems = listItems.slice(i);
+                                if (remainingItems.length === 0) {
+                                    return { fittingPart: originalContent, remainingPart: null };
+                                }
+
+                                const remainingPart = originalContent.cloneNode(false);
+                                remainingItems.forEach(item => remainingPart.appendChild(item.cloneNode(true)));
+
+                                console.log(`%c[split-ul] Found a fit!`, 'color: green;');
+
+                                let splitIndex = 0;
+                                for (let j = 0; j < i; j++) {
+                                    try {
+                                        splitIndex += listItems[j].outerHTML.length;
+                                    } catch (error) {
+                                        console.warn('Error calculating split index for list item:', error);
+                                    }
+                                }
+
+                                console.log(`%cPAGE BREAK in List:`, 'color: #8A2BE2; font-weight: bold;');
+                                console.log(`  > Split occurs at character index: ~${splitIndex} (relative to <ul> content)`);
+                                
+                                return { fittingPart, remainingPart };
+                            }
+                        } catch (itemError) {
+                            console.warn(`Error testing list item ${i}:`, itemError);
+                            continue; // Try next item count
                         }
-
-                        const remainingPart = originalContent.cloneNode(false);
-                        remainingItems.forEach(item => remainingPart.appendChild(item.cloneNode(true)));
-
-                        console.log(`%c[split-ul] Found a fit!`, 'color: green;');
-
-                        let splitIndex = 0;
-                        for (let j = 0; j < i; j++) {
-                            splitIndex += listItems[j].outerHTML.length;
-                        }
-
-                        console.log(`%cPAGE BREAK in List:`, 'color: #8A2BE2; font-weight: bold;');
-                        console.log(`  > Split occurs at character index: ~${splitIndex} (relative to <ul> content)`);
-                        
-                        return { fittingPart, remainingPart };
                     }
+
+                    console.log('%c[split-ul] Could not fit even one list item.', 'color: red;');
+                    return { fittingPart: null, remainingPart: originalContent };
+                    
+                } catch (error) {
+                    console.error('Error in splitListNode:', error);
+                    return { fittingPart: null, remainingPart: node };
                 }
-
-                console.log('%c[split-ul] Could not fit even one list item.', 'color: red;');
-                return { fittingPart: null, remainingPart: originalContent };
             }
 
             /**
@@ -915,7 +1221,76 @@
                     return;
                 }
                 htmlInput.value = htmlString;
-                paginateContent();
+                
+                // Force a complete refresh to reset any problematic state
+                forceRefreshPagination();
+            };
+            
+            /**
+             * Force refresh pagination with state reset
+             */
+            function forceRefreshPagination() {
+                console.log('Force refreshing pagination with state reset...');
+                
+                // Clear all cached state and reset variables
+                paginationLog = [];
+                currentPageNumber = 0;
+                pageContainer.innerHTML = '';
+                logOutput.textContent = '';
+                
+                // Force a small delay to allow any pending DOM updates to complete
+                setTimeout(() => {
+                    try {
+                        // Validate page setup before proceeding
+                        const testHeight = getValidatedPageHeight();
+                        console.log(`Post-refresh page height validation: ${testHeight}px`);
+                        
+                        if (testHeight < 150) {
+                            console.warn('Page height seems too small after refresh, attempting correction...');
+                            // Reset any extreme CSS that might be affecting layout
+                            document.documentElement.style.setProperty('--page-margin-top', '20mm');
+                            document.documentElement.style.setProperty('--page-margin-bottom', '20mm');
+                            document.documentElement.style.setProperty('--page-margin-left', '20mm');
+                            document.documentElement.style.setProperty('--page-margin-right', '20mm');
+                        }
+                        
+                        paginateContent();
+                        
+                    } catch (error) {
+                        console.error('Error during force refresh:', error);
+                        // Emergency fallback
+                        createEmergencyPage();
+                    }
+                }, 100);
+            }
+            
+            /**
+             * Create emergency fallback page when pagination completely fails
+             */
+            function createEmergencyPage() {
+                console.warn('Creating emergency fallback page...');
+                pageContainer.innerHTML = '';
+                const emergencyPage = document.createElement('div');
+                emergencyPage.className = 'page';
+                emergencyPage.innerHTML = `
+                    <div style="color: red; border: 2px solid red; padding: 10px; margin: 10px; background: #ffe6e6;">
+                        <h3>⚠️ Pagination Recovery Mode</h3>
+                        <p>The pagination system encountered an issue, likely due to extreme margin settings.</p>
+                        <p><strong>To fix:</strong> Adjust margins to reasonable values and try updating content again.</p>
+                        <hr style="margin: 10px 0;">
+                        <div style="border: 1px solid #ccc; padding: 10px; background: white; color: black; max-height: 400px; overflow-y: auto;">
+                            ${htmlInput.value || '<p>No content available</p>'}
+                        </div>
+                    </div>
+                `;
+                pageContainer.appendChild(emergencyPage);
+                
+                logOutput.textContent = JSON.stringify([{
+                    type: 'Emergency Recovery',
+                    message: 'Pagination failed, displaying content in emergency mode',
+                    timestamp: new Date().toISOString(),
+                    suggestion: 'Adjust margin settings and try again'
+                }], null, 2);
             }
 
             // Initially paginate the default content
@@ -934,7 +1309,7 @@
                         paginateContent();
                     } else if (data.action === 'setZoom') {
                         console.log('Setting zoom to:', data.zoom);
-                        // Update internal zoom level and apply
+                        // Update internal zoom level - no need to repaginate, just apply visual zoom
                         currentZoom = data.zoom;
                         pageContainer.style.transform = `scale(${currentZoom})`;
                         pageContainer.style.transformOrigin = 'top left';
