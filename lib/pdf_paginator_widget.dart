@@ -35,6 +35,7 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
   Timer? _popupMonitorTimer;
   Timer? _initTimeoutTimer;
   Timer? _forceRetryTimer;
+  Timer? _iframeReadyPollingTimer;
   String _lastHtmlContent = '';
   double _lastZoomLevel = 1.0;
   bool _lastPopupState = false;
@@ -61,29 +62,29 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
       _setupMessageListener();
       
       // Fallback timeout in case iframe never loads
-      _initTimeoutTimer = Timer(const Duration(seconds: 3), () {
-        if (!_disposed && widget.controller.isLoading && !_iframeInitialized) {
-          debugPrint('Iframe load timeout, forcing loading to false');
-          widget.controller.setLoading(false);
-          _iframeInitialized = true;
+      // _initTimeoutTimer = Timer(const Duration(seconds: 10), () {
+      //   if (!_disposed && widget.controller.isLoading && !_iframeInitialized) {
+      //     debugPrint('Iframe load timeout, forcing loading to false');
+      //     widget.controller.setLoading(false);
+      //     _iframeInitialized = true;
           
-          // Try to send initial content anyway
-          Timer(const Duration(milliseconds: 500), () {
-            if (!_disposed && widget.controller.htmlContent.isNotEmpty) {
-              _sendMessageToIframe({
-                'action': 'updateContent',
-                'html': widget.controller.htmlContent,
-              });
-            }
-            if (!_disposed) {
-              _sendMessageToIframe({
-                'action': 'setZoom',
-                'zoom': widget.controller.zoomLevel,
-              });
-            }
-          });
-        }
-      });
+      //     // Try to send initial content anyway
+      //     Timer(const Duration(milliseconds: 500), () {
+      //       if (!_disposed && widget.controller.htmlContent.isNotEmpty) {
+      //         _sendMessageToIframe({
+      //           'action': 'updateContent',
+      //           'html': widget.controller.htmlContent,
+      //         });
+      //       }
+      //       if (!_disposed) {
+      //         _sendMessageToIframe({
+      //           'action': 'setZoom',
+      //           'zoom': widget.controller.zoomLevel,
+      //         });
+      //       }
+      //     });
+      //   }
+      // });
     } else {
       // Set loading state using post-frame callback
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -107,11 +108,13 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
     _popupMonitorTimer?.cancel();
     _initTimeoutTimer?.cancel();
     _forceRetryTimer?.cancel();
+    _iframeReadyPollingTimer?.cancel();
     
     // Clear references
     _popupMonitorTimer = null;
     _initTimeoutTimer = null;
     _forceRetryTimer = null;
+    _iframeReadyPollingTimer = null;
     
     super.dispose();
   }
@@ -159,52 +162,129 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
 
   void _initializeIframe() {
     debugPrint('Initializing iframe with id: $_iframeId');
+    
+    // Create iframe element
     final iframe = web.HTMLIFrameElement()
       ..src = 'pdf_preview.html'
       ..style.border = 'none'
       ..style.width = '100%'
       ..style.height = '100%'
-      ..id = _iframeId; // Set the ID explicitly
+      ..id = _iframeId;
 
-    iframe.addEventListener('load', (web.Event _) {
-      debugPrint('Iframe onLoad fired, initialized: $_iframeInitialized');
-      if (!_disposed && !_iframeInitialized) {
-        _iframeInitialized = true;
-        widget.controller.setLoading(false);
-        debugPrint('Iframe initialized, loading set to false');
-        
-        // Cancel timeout timer since iframe loaded successfully
-        _initTimeoutTimer?.cancel();
-        
-        // Send initial content, zoom, and config after iframe loads, only once
-        Timer(const Duration(milliseconds: 500), () {
-          if (!_disposed) {
-            debugPrint('Sending initial content to iframe');
-            if (widget.controller.htmlContent.isNotEmpty) {
-              _sendMessageToIframe({
-                'action': 'updateContent',
-                'html': widget.controller.htmlContent,
-              });
-            }
-            _sendMessageToIframe({
-              'action': 'setZoom',
-              'zoom': widget.controller.zoomLevel,
-            });
-            _sendMessageToIframe({
-              'action': 'updateConfig',
-              'config': widget.controller.config.toJson(),
-            });
-          }
-        });
-      }
-    }.toJS);
-
-    iframe.addEventListener('error', (web.Event event) {
-      debugPrint('Iframe error: $event');
-    }.toJS);
-
+    // Register the iframe with Flutter's platform view system
     debugPrint('Registering iframe view factory');
     ui.platformViewRegistry.registerViewFactory(_iframeId, (int viewId) => iframe);
+    
+    // Start polling to detect when the iframe is ready
+    _startIframeReadyPolling();
+    
+      // Set up fallback timeout as ultimate safety net
+      _initTimeoutTimer = Timer(const Duration(seconds: 15), () {
+        if (!_disposed && widget.controller.isLoading && !_iframeInitialized) {
+          debugPrint('Iframe initialization timeout after 15 seconds, using fallback approach');
+          _handleIframeReady(isTimeout: true);
+        }
+      });
+  }
+  
+  void _startIframeReadyPolling() {
+    debugPrint('Starting iframe ready polling for ID: $_iframeId');
+    int pollCount = 0;
+    
+    // Poll every 200ms to check if iframe is ready
+    _iframeReadyPollingTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      if (_disposed) {
+        debugPrint('Widget disposed, stopping polling');
+        timer.cancel();
+        return;
+      }
+      
+      if (_iframeInitialized) {
+        debugPrint('Iframe already initialized, stopping polling');
+        timer.cancel();
+        return;
+      }
+      
+      pollCount++;
+      if (pollCount % 10 == 0) {
+        debugPrint('Polling attempt #$pollCount, looking for iframe with ID: $_iframeId');
+        // List all iframes in the document for debugging
+        final allIframes = web.document.querySelectorAll('iframe');
+        debugPrint('Found ${allIframes.length} iframes in document');
+        for (int i = 0; i < allIframes.length; i++) {
+          final iframe = allIframes.item(i) as web.HTMLIFrameElement?;
+          debugPrint('  Iframe $i: id="${iframe?.id}", src="${iframe?.src}"');
+        }
+      }
+      
+      // Try to find the iframe in the DOM
+      final iframe = web.document.getElementById(_iframeId) as web.HTMLIFrameElement?;
+      if (iframe != null) {
+        debugPrint('Found iframe with ID $_iframeId, contentWindow: ${iframe.contentWindow != null}');
+        
+        if (iframe.contentWindow != null) {
+          // Check if we can access the iframe's document (indicates it's loaded)
+          try {
+            // Try to send a test message to see if the iframe is responsive
+            iframe.contentWindow!.postMessage('{"action": "ping"}'.toJS, '*'.toJS);
+            
+            // If we get here without error, the iframe is likely ready
+            debugPrint('Iframe appears to be accessible, sent ping message, waiting for response or ready message');
+            timer.cancel();
+            
+            // Set a shorter timeout now that we know the iframe exists
+            Timer(const Duration(seconds: 3), () {
+              if (!_disposed && !_iframeInitialized) {
+                debugPrint('Iframe exists but no ready message received after 3 seconds, proceeding anyway');
+                _handleIframeReady(isTimeout: false);
+              }
+            });
+            
+          } catch (e) {
+            // Iframe not ready yet, continue polling
+            debugPrint('Iframe found but not ready yet: $e');
+          }
+        } else {
+          debugPrint('Iframe found but contentWindow is null');
+        }
+      } else {
+        if (pollCount % 20 == 0) {
+          debugPrint('Iframe with ID $_iframeId not found in DOM (attempt $pollCount)');
+        }
+      }
+    });
+  }
+  
+  void _handleIframeReady({required bool isTimeout}) {
+    if (_disposed || _iframeInitialized) return;
+    
+    debugPrint('Handling iframe ready (timeout: $isTimeout)');
+    _iframeInitialized = true;
+    widget.controller.setLoading(false);
+    
+    // Cancel timeout timer
+    _initTimeoutTimer?.cancel();
+    
+    // Send initial data after a short delay
+    Timer(const Duration(milliseconds: 500), () {
+      if (!_disposed) {
+        debugPrint('Sending initial content to iframe');
+        if (widget.controller.htmlContent.isNotEmpty) {
+          _sendMessageToIframe({
+            'action': 'updateContent',
+            'html': widget.controller.htmlContent,
+          });
+        }
+        _sendMessageToIframe({
+          'action': 'setZoom',
+          'zoom': widget.controller.zoomLevel,
+        });
+        _sendMessageToIframe({
+          'action': 'updateConfig',
+          'config': widget.controller.config.toJson(),
+        });
+      }
+    });
   }
 
 
@@ -237,6 +317,18 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
           // Popup is ready, send initial data immediately
           if (!_disposed) {
             _sendInitialDataToPopup();
+          }
+        } else if (data['type'] == 'iframeReady') {
+          // Iframe is ready and loaded
+          debugPrint('Received iframeReady message');
+          if (!_disposed && !_iframeInitialized) {
+            _handleIframeReady(isTimeout: false);
+          }
+        } else if (data['action'] == 'pong') {
+          // Response to our ping - iframe is responsive
+          debugPrint('Received pong response, iframe is responsive');
+          if (!_disposed && !_iframeInitialized) {
+            _handleIframeReady(isTimeout: false);
           }
         }
       } catch (e) {
@@ -527,15 +619,25 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
   }
 
   Widget _buildIframeView() {
-    if (widget.controller.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: HtmlElementView(viewType: _iframeId),
+    return Stack(
+      children: [
+        // Always render the HtmlElementView so the iframe gets added to DOM
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: HtmlElementView(viewType: _iframeId),
+        ),
+        // Show loading indicator on top while loading
+        if (widget.controller.isLoading)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+      ],
     );
   }
 

@@ -1543,6 +1543,29 @@
 
             // Initially paginate the default content
             paginateContent();
+            
+            // Send ready message to parent window to indicate iframe is loaded and ready
+            function sendReadyMessage() {
+                const readyMessage = {
+                    type: 'iframeReady',
+                    timestamp: Date.now()
+                };
+                
+                console.log('Sending iframe ready message');
+                
+                // Send to iframe parent
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage(JSON.stringify(readyMessage), '*');
+                }
+                
+                // Send to popup opener (for popup windows)
+                if (window.opener && window.opener !== window) {
+                    window.opener.postMessage(JSON.stringify(readyMessage), '*');
+                }
+            }
+            
+            // Send ready message after a short delay to ensure everything is initialized
+            setTimeout(sendReadyMessage, 100);
 
             // --- NEW: Message handling for Flutter communication ---
             window.addEventListener('message', function(event) {
@@ -1569,6 +1592,26 @@
                     } else if (data.action === 'updateConfig') {
                         console.log('Updating config:', data.config);
                         updateConfiguration(data.config);
+                    } else if (data.action === 'ping') {
+                        console.log('Received ping, sending pong response');
+                        // Respond to ping with pong
+                        const pongMessage = {
+                            action: 'pong',
+                            timestamp: Date.now()
+                        };
+                        
+                        // Send to iframe parent
+                        if (window.parent && window.parent !== window) {
+                            window.parent.postMessage(JSON.stringify(pongMessage), '*');
+                        }
+                        
+                        // Send to popup opener
+                        if (window.opener && window.opener !== window) {
+                            window.opener.postMessage(JSON.stringify(pongMessage), '*');
+                        }
+                    } else if (data.action === 'repaginate') {
+                        console.log('Received repaginate request');
+                        paginateContent();
                     }
                 } catch (e) {
                     // Ignore non-JSON messages
