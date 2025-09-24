@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html' as html;
+import 'dart:js_interop';
 import 'dart:ui_web' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'pdf_paginator_controller.dart';
 
@@ -39,8 +40,6 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
   bool _lastPopupState = false;
   PdfPaginatorConfig? _lastConfig;
   bool _iframeInitialized = false;
-  int _forceInitAttempts = 0;
-  static const int _maxForceInitAttempts = 5;
   bool _disposed = false;
 
   @override
@@ -160,14 +159,14 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
 
   void _initializeIframe() {
     debugPrint('Initializing iframe with id: $_iframeId');
-    final iframe = html.IFrameElement()
+    final iframe = web.HTMLIFrameElement()
       ..src = 'pdf_preview.html'
       ..style.border = 'none'
       ..style.width = '100%'
       ..style.height = '100%'
       ..id = _iframeId; // Set the ID explicitly
 
-    iframe.onLoad.listen((_) {
+    iframe.addEventListener('load', (web.Event _) {
       debugPrint('Iframe onLoad fired, initialized: $_iframeInitialized');
       if (!_disposed && !_iframeInitialized) {
         _iframeInitialized = true;
@@ -198,66 +197,24 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
           }
         });
       }
-    });
+    }.toJS);
 
-    iframe.onError.listen((event) {
+    iframe.addEventListener('error', (web.Event event) {
       debugPrint('Iframe error: $event');
-    });
+    }.toJS);
 
     debugPrint('Registering iframe view factory');
     ui.platformViewRegistry.registerViewFactory(_iframeId, (int viewId) => iframe);
   }
 
-  void _forceIframeInitialization() {
-    _forceInitAttempts++;
-    debugPrint('Force initializing iframe (attempt $_forceInitAttempts/$_maxForceInitAttempts)');
-    
-    if (_forceInitAttempts > _maxForceInitAttempts) {
-      debugPrint('Max force init attempts reached, giving up');
-      widget.controller.setLoading(false);
-      _iframeInitialized = true; // Prevent further attempts
-      return;
-    }
-    
-    // Try to find the iframe in the DOM
-    final iframe = html.document.getElementById(_iframeId) as html.IFrameElement?;
-    if (iframe != null) {
-      debugPrint('Found iframe in DOM, force initializing');
-      if (!_iframeInitialized) {
-        _iframeInitialized = true;
-        widget.controller.setLoading(false);
-        
-        // Try to send initial content
-        Timer(const Duration(milliseconds: 1000), () {
-          if (widget.controller.htmlContent.isNotEmpty) {
-            _sendMessageToIframe({
-              'action': 'updateContent',
-              'html': widget.controller.htmlContent,
-            });
-          }
-          _sendMessageToIframe({
-            'action': 'setZoom',
-            'zoom': widget.controller.zoomLevel,
-          });
-        });
-      }
-    } else {
-      debugPrint('Could not find iframe in DOM, retrying in 2 seconds...');
-      _forceRetryTimer?.cancel();
-      _forceRetryTimer = Timer(const Duration(seconds: 2), () {
-        if (!_disposed && widget.controller.isLoading && _forceInitAttempts <= _maxForceInitAttempts) {
-          _forceIframeInitialization();
-        }
-      });
-    }
-  }
 
   void _setupMessageListener() {
-    html.window.onMessage.listen((event) {
+    web.window.addEventListener('message', (web.Event event) {
       if (_disposed) return;
       
       try {
-        final data = json.decode(event.data as String) as Map<String, dynamic>;
+        final messageEvent = event as web.MessageEvent;
+        final data = json.decode(messageEvent.data.toString()) as Map<String, dynamic>;
         
         if (data['type'] == 'paginationData') {
           final payload = data['payload'] as List<dynamic>;
@@ -285,7 +242,7 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
       } catch (e) {
         debugPrint('Error parsing message: $e');
       }
-    });
+    }.toJS);
   }
 
   void _updateContent() {
@@ -322,11 +279,11 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
       return;
     }
     
-    final iframe = html.document.getElementById(_iframeId) as html.IFrameElement?;
+    final iframe = web.document.getElementById(_iframeId) as web.HTMLIFrameElement?;
     debugPrint('Found iframe element: ${iframe != null}');
     if (iframe?.contentWindow != null) {
       try {
-        iframe!.contentWindow!.postMessage(json.encode(message), '*');
+        iframe!.contentWindow!.postMessage(json.encode(message).toJS, '*'.toJS);
         debugPrint('Message sent to iframe successfully: ${message['action']}');
       } catch (e) {
         debugPrint('Error sending message to iframe: $e');
@@ -343,9 +300,9 @@ class _PdfPaginatorWidgetState extends State<PdfPaginatorWidget> {
     }
     
     final popupWindow = widget.controller.popupWindow;
-    if (popupWindow != null && !popupWindow.closed!) {
+    if (popupWindow != null && !popupWindow.closed) {
       try {
-        popupWindow.postMessage(json.encode(message), '*');
+        popupWindow.postMessage(json.encode(message).toJS, '*'.toJS);
       } catch (e) {
         debugPrint('Error sending message to popup: $e');
       }

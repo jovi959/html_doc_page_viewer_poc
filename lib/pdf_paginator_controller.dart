@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
+import 'package:web/web.dart' as web;
 
 /// Controller for managing PDF pagination functionality
 /// Configuration object for PDF paginator settings
@@ -65,7 +65,7 @@ class PdfPaginatorController extends ChangeNotifier {
   double _zoomLevel = 1.0;
   List<Map<String, dynamic>> _pageBreaks = [];
   bool _isLoading = true;
-  html.WindowBase? _popupWindow;
+  web.Window? _popupWindow;
   PdfPaginatorConfig _config = const PdfPaginatorConfig();
   bool _isPopupMode = false;
 
@@ -74,9 +74,9 @@ class PdfPaginatorController extends ChangeNotifier {
   double get zoomLevel => _zoomLevel;
   List<Map<String, dynamic>> get pageBreaks => List.unmodifiable(_pageBreaks);
   bool get isLoading => _isLoading;
-  bool get isPopupOpen => _isPopupMode && _popupWindow != null && !_popupWindow!.closed!;
-  bool get hasPopupWindow => _popupWindow != null && !_popupWindow!.closed!;
-  html.WindowBase? get popupWindow => _popupWindow;
+  bool get isPopupOpen => _isPopupMode && _popupWindow != null && !_popupWindow!.closed;
+  bool get hasPopupWindow => _popupWindow != null && !_popupWindow!.closed;
+  web.Window? get popupWindow => _popupWindow;
   PdfPaginatorConfig get config => _config;
 
   /// Set the HTML content for pagination
@@ -125,7 +125,7 @@ class PdfPaginatorController extends ChangeNotifier {
   /// Open popup window
   void openPopup() {
     if (kIsWeb && !isPopupOpen) {
-      final popup = html.window.open(
+      final popup = web.window.open(
         'pdf_preview.html?mode=popup',
         '_blank',
         'width=1200,height=800,scrollbars=yes,resizable=yes'
@@ -137,7 +137,7 @@ class PdfPaginatorController extends ChangeNotifier {
 
   /// Close popup window
   void closePopup() {
-    if (_popupWindow != null && !_popupWindow!.closed!) {
+    if (_popupWindow != null && !_popupWindow!.closed) {
       // Mark that this is a programmatic close to trigger sync
       _isPopupClosingProgrammatically = true;
       _popupWindow!.close();
@@ -179,7 +179,7 @@ class PdfPaginatorController extends ChangeNotifier {
   }
 
   /// Set popup window reference
-  void setPopupWindow(html.WindowBase? window) {
+  void setPopupWindow(web.Window? window) {
     _popupWindow = window;
     _isPopupMode = window != null;
     notifyListeners();
