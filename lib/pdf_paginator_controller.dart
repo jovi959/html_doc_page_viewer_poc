@@ -12,6 +12,12 @@ class PdfPaginatorConfig {
   final double fontSize;
   final double lineHeight;
   final double liLineHeight;
+  final double brHeight; // Actually controls margin-top spacing
+  final double ulMarginTop;
+  final double ulMarginBottom;
+  final double olMarginTop;
+  final double olMarginBottom;
+  final double anchorLineHeight;
   final String backgroundColor;
   final String pageBackgroundColor;
 
@@ -23,6 +29,12 @@ class PdfPaginatorConfig {
     this.fontSize = 12.0,
     this.lineHeight = 1.5,
     this.liLineHeight = 1.5,
+    this.brHeight = 16.0,
+    this.ulMarginTop = 16.0,
+    this.ulMarginBottom = 16.0,
+    this.olMarginTop = 16.0,
+    this.olMarginBottom = 16.0,
+    this.anchorLineHeight = 1.5,
     this.backgroundColor = '#f5f5f5',
     this.pageBackgroundColor = '#ffffff',
   });
@@ -36,6 +48,12 @@ class PdfPaginatorConfig {
       'fontSize': fontSize,
       'lineHeight': lineHeight,
       'liLineHeight': liLineHeight,
+      'brHeight': brHeight,
+      'ulMarginTop': ulMarginTop,
+      'ulMarginBottom': ulMarginBottom,
+      'olMarginTop': olMarginTop,
+      'olMarginBottom': olMarginBottom,
+      'anchorLineHeight': anchorLineHeight,
       'backgroundColor': backgroundColor,
       'pageBackgroundColor': pageBackgroundColor,
     };

@@ -58,6 +58,23 @@ class _PdfPaginatorScreenState extends State<PdfPaginatorScreen> {
 
 <p>Final paragraph to complete the sample content.</p>
 
+<h2>Line Break and List Testing</h2>
+<p>Line 1<br>Line 2 (with line break)<br>Line 3</p>
+
+<p>Unordered list with margins:</p>
+<ul>
+  <li>First item</li>
+  <li>Second item with <a href="#">a link</a></li>
+  <li>Third item</li>
+</ul>
+
+<p>Ordered list with margins:</p>
+<ol>
+  <li>First numbered item</li>
+  <li>Second numbered item</li>
+  <li>Third numbered item with <a href="#">another link</a></li>
+</ol>
+
 <h2>Extremely Long List To Test Splitting</h2>
 <ul>
 <li>List Item 1 - Lorem ipsum dolor sit amet, consectetur adipiscing elit</li>
@@ -119,6 +136,28 @@ class _PdfPaginatorScreenState extends State<PdfPaginatorScreen> {
     _pdfController.dispose();
     _htmlController.dispose();
     super.dispose();
+  }
+
+  /// Helper method to create a config with only background color changed
+  PdfPaginatorConfig _configWithBackground(String backgroundColor) {
+    final current = _pdfController.config;
+    return PdfPaginatorConfig(
+      marginTop: current.marginTop,
+      marginBottom: current.marginBottom,
+      marginLeft: current.marginLeft,
+      marginRight: current.marginRight,
+      fontSize: current.fontSize,
+      lineHeight: current.lineHeight,
+      liLineHeight: current.liLineHeight,
+      brHeight: current.brHeight,
+      ulMarginTop: current.ulMarginTop,
+      ulMarginBottom: current.ulMarginBottom,
+      olMarginTop: current.olMarginTop,
+      olMarginBottom: current.olMarginBottom,
+      anchorLineHeight: current.anchorLineHeight,
+      backgroundColor: backgroundColor,
+      pageBackgroundColor: current.pageBackgroundColor,
+    );
   }
 
   void _onPdfControllerChange() {
@@ -249,32 +288,66 @@ class _PdfPaginatorScreenState extends State<PdfPaginatorScreen> {
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () => _pdfController.updateConfig(
-                          PdfPaginatorConfig(
-                            marginTop: _pdfController.config.marginTop,
-                            marginBottom: _pdfController.config.marginBottom,
-                            marginLeft: _pdfController.config.marginLeft,
-                            marginRight: _pdfController.config.marginRight,
-                            fontSize: _pdfController.config.fontSize,
-                            backgroundColor: '#1a1a1a', // Dark
-                            pageBackgroundColor: _pdfController.config.pageBackgroundColor,
-                          ),
+                          _configWithBackground('#1a1a1a'), // Dark
                         ),
                         child: const Text('Dark'),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () => _pdfController.updateConfig(
-                          PdfPaginatorConfig(
-                            marginTop: _pdfController.config.marginTop,
-                            marginBottom: _pdfController.config.marginBottom,
-                            marginLeft: _pdfController.config.marginLeft,
-                            marginRight: _pdfController.config.marginRight,
-                            fontSize: _pdfController.config.fontSize,
-                            backgroundColor: '#ffffff', // White
-                            pageBackgroundColor: _pdfController.config.pageBackgroundColor,
-                          ),
+                          _configWithBackground('#ffffff'), // White
                         ),
                         child: const Text('White'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _pdfController.updateConfig(
+                          _configWithBackground('#f5f5f5'), // Light Gray
+                        ),
+                        child: const Text('Gray'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Additional Configuration Controls
+                  const Text('Sample Configurations:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                       ElevatedButton(
+                         onPressed: () => _pdfController.updateConfig(
+                           const PdfPaginatorConfig(
+                             brHeight: 4.0, // Tighter line break spacing
+                             ulMarginTop: 8.0,
+                             ulMarginBottom: 8.0,
+                             olMarginTop: 8.0,
+                             olMarginBottom: 8.0,
+                             anchorLineHeight: 1.2, // Tighter anchor spacing
+                           ),
+                         ),
+                         child: const Text('Compact'),
+                       ),
+                       ElevatedButton(
+                         onPressed: () => _pdfController.updateConfig(
+                           const PdfPaginatorConfig(
+                             brHeight: 28.0, // Larger line break spacing
+                             ulMarginTop: 24.0,
+                             ulMarginBottom: 24.0,
+                             olMarginTop: 24.0,
+                             olMarginBottom: 24.0,
+                             anchorLineHeight: 1.8, // Looser anchor spacing
+                           ),
+                         ),
+                         child: const Text('Spacious'),
+                       ),
+                      ElevatedButton(
+                        onPressed: () => _pdfController.updateConfig(
+                          const PdfPaginatorConfig(), // Reset to defaults
+                        ),
+                        child: const Text('Reset'),
                       ),
                     ],
                   ),

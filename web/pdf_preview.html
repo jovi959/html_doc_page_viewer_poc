@@ -33,14 +33,47 @@
         }
 
         /* NEW: Line height for list items is now a variable */
-        .page ul li {
+        .page ul li, .page ol li {
             line-height: var(--page-li-line-height, 1.5);
+        }
+
+            /* NEW: <br> spacing control - using ::after pseudo-element for better control */
+            .page br {
+                display: block;
+                margin: 0 !important;
+                padding: 0 !important;
+                line-height: 0;
+            }
+            
+            .page br::after {
+                content: "";
+                display: block;
+                height: var(--page-br-height, 16px);
+            }
+
+        /* NEW: Anchor line height control - only for anchors NOT in list items */
+        .page a:not(li a) {
+            line-height: var(--page-anchor-line-height, 1.5);
+        }
+        
+        /* Specific rule for anchors inside list items - should use list item line height */
+        .page ul li a, .page ol li a {
+            line-height: inherit; /* Inherit from parent li element */
         }
 
         /* FIX: Restore list styles that are often removed by CSS resets like Tailwind's preflight. */
         .page ul {
             list-style: disc;
             padding-left: 2rem; /* Adjust as needed for indentation */
+            margin-top: var(--page-ul-margin-top, 16px);
+            margin-bottom: var(--page-ul-margin-bottom, 16px);
+        }
+
+        .page ol {
+            list-style: decimal;
+            padding-left: 2rem; /* Consistent with ul padding */
+            margin-top: var(--page-ol-margin-top, 16px);
+            margin-bottom: var(--page-ol-margin-bottom, 16px);
         }
 
         /* Styles for printing */
@@ -296,6 +329,41 @@
             <label for="li-line-height-slider"><span>Line Height (li)</span><span id="li-line-height-value">1.5</span></label>
             <input type="range" id="li-line-height-slider" min="1.2" max="2.5" step="0.1" value="1.5">
         </div>
+
+        <div class="slider-group">
+            <label for="br-height-slider"><span>Line Break Spacing</span><span id="br-height-value">16px</span></label>
+            <input type="range" id="br-height-slider" min="0" max="32" step="1" value="16">
+        </div>
+
+        <div class="slider-group">
+            <label for="anchor-line-height-slider"><span>Line Height (a)</span><span id="anchor-line-height-value">1.5</span></label>
+            <input type="range" id="anchor-line-height-slider" min="1.0" max="2.5" step="0.1" value="1.5">
+        </div>
+
+        <hr class="my-6">
+        
+        <!-- List Margin Controls -->
+        <h3 class="text-lg font-semibold text-gray-700 mb-3">List Margins</h3>
+        
+        <div class="slider-group">
+            <label for="ul-margin-top-slider"><span>UL Top Margin</span><span id="ul-margin-top-value">16px</span></label>
+            <input type="range" id="ul-margin-top-slider" min="0" max="40" step="1" value="16">
+        </div>
+
+        <div class="slider-group">
+            <label for="ul-margin-bottom-slider"><span>UL Bottom Margin</span><span id="ul-margin-bottom-value">16px</span></label>
+            <input type="range" id="ul-margin-bottom-slider" min="0" max="40" step="1" value="16">
+        </div>
+
+        <div class="slider-group">
+            <label for="ol-margin-top-slider"><span>OL Top Margin</span><span id="ol-margin-top-value">16px</span></label>
+            <input type="range" id="ol-margin-top-slider" min="0" max="40" step="1" value="16">
+        </div>
+
+        <div class="slider-group">
+            <label for="ol-margin-bottom-slider"><span>OL Bottom Margin</span><span id="ol-margin-bottom-value">16px</span></label>
+            <input type="range" id="ol-margin-bottom-slider" min="0" max="40" step="1" value="16">
+        </div>
         
         <hr class="my-6">
         
@@ -396,6 +464,22 @@
             const liLineHeightSlider = document.getElementById('li-line-height-slider');
             const liLineHeightValue = document.getElementById('li-line-height-value');
 
+            // New Element Controls
+            const brHeightSlider = document.getElementById('br-height-slider');
+            const brHeightValue = document.getElementById('br-height-value');
+            const anchorLineHeightSlider = document.getElementById('anchor-line-height-slider');
+            const anchorLineHeightValue = document.getElementById('anchor-line-height-value');
+
+            // List Margin Sliders
+            const ulMarginTopSlider = document.getElementById('ul-margin-top-slider');
+            const ulMarginTopValue = document.getElementById('ul-margin-top-value');
+            const ulMarginBottomSlider = document.getElementById('ul-margin-bottom-slider');
+            const ulMarginBottomValue = document.getElementById('ul-margin-bottom-value');
+            const olMarginTopSlider = document.getElementById('ol-margin-top-slider');
+            const olMarginTopValue = document.getElementById('ol-margin-top-value');
+            const olMarginBottomSlider = document.getElementById('ol-margin-bottom-slider');
+            const olMarginBottomValue = document.getElementById('ol-margin-bottom-value');
+
 
             let paginationLog = [];
             let currentPageNumber = 0;
@@ -460,6 +544,16 @@
             setupSlider(fontSizeSlider, fontSizeValue, '--page-font-size', 'px');
             setupSlider(lineHeightSlider, lineHeightValue, '--page-line-height', '');
             setupSlider(liLineHeightSlider, liLineHeightValue, '--page-li-line-height', '');
+            
+            // Setup new element controls
+            setupSlider(brHeightSlider, brHeightValue, '--page-br-height', 'px');
+            setupSlider(anchorLineHeightSlider, anchorLineHeightValue, '--page-anchor-line-height', '');
+            
+            // Setup list margin controls
+            setupSlider(ulMarginTopSlider, ulMarginTopValue, '--page-ul-margin-top', 'px');
+            setupSlider(ulMarginBottomSlider, ulMarginBottomValue, '--page-ul-margin-bottom', 'px');
+            setupSlider(olMarginTopSlider, olMarginTopValue, '--page-ol-margin-top', 'px');
+            setupSlider(olMarginBottomSlider, olMarginBottomValue, '--page-ol-margin-bottom', 'px');
             
             // Recovery button event listeners
             document.getElementById('force-refresh-btn').addEventListener('click', () => {
@@ -1300,6 +1394,70 @@
                     if (liLineHeightSlider && liLineHeightValue) {
                         liLineHeightSlider.value = config.liLineHeight;
                         liLineHeightValue.textContent = config.liLineHeight.toString();
+                    }
+                }
+                
+                // NEW: BR height configuration
+                if (typeof config.brHeight === 'number') {
+                    document.documentElement.style.setProperty('--page-br-height', `${config.brHeight}px`);
+                    const brHeightSlider = document.getElementById('br-height-slider');
+                    const brHeightValue = document.getElementById('br-height-value');
+                    if (brHeightSlider && brHeightValue) {
+                        brHeightSlider.value = config.brHeight;
+                        brHeightValue.textContent = `${config.brHeight}px`;
+                    }
+                }
+                
+                // NEW: UL margin configuration
+                if (typeof config.ulMarginTop === 'number') {
+                    document.documentElement.style.setProperty('--page-ul-margin-top', `${config.ulMarginTop}px`);
+                    const ulMarginTopSlider = document.getElementById('ul-margin-top-slider');
+                    const ulMarginTopValue = document.getElementById('ul-margin-top-value');
+                    if (ulMarginTopSlider && ulMarginTopValue) {
+                        ulMarginTopSlider.value = config.ulMarginTop;
+                        ulMarginTopValue.textContent = `${config.ulMarginTop}px`;
+                    }
+                }
+                
+                if (typeof config.ulMarginBottom === 'number') {
+                    document.documentElement.style.setProperty('--page-ul-margin-bottom', `${config.ulMarginBottom}px`);
+                    const ulMarginBottomSlider = document.getElementById('ul-margin-bottom-slider');
+                    const ulMarginBottomValue = document.getElementById('ul-margin-bottom-value');
+                    if (ulMarginBottomSlider && ulMarginBottomValue) {
+                        ulMarginBottomSlider.value = config.ulMarginBottom;
+                        ulMarginBottomValue.textContent = `${config.ulMarginBottom}px`;
+                    }
+                }
+                
+                // NEW: OL margin configuration
+                if (typeof config.olMarginTop === 'number') {
+                    document.documentElement.style.setProperty('--page-ol-margin-top', `${config.olMarginTop}px`);
+                    const olMarginTopSlider = document.getElementById('ol-margin-top-slider');
+                    const olMarginTopValue = document.getElementById('ol-margin-top-value');
+                    if (olMarginTopSlider && olMarginTopValue) {
+                        olMarginTopSlider.value = config.olMarginTop;
+                        olMarginTopValue.textContent = `${config.olMarginTop}px`;
+                    }
+                }
+                
+                if (typeof config.olMarginBottom === 'number') {
+                    document.documentElement.style.setProperty('--page-ol-margin-bottom', `${config.olMarginBottom}px`);
+                    const olMarginBottomSlider = document.getElementById('ol-margin-bottom-slider');
+                    const olMarginBottomValue = document.getElementById('ol-margin-bottom-value');
+                    if (olMarginBottomSlider && olMarginBottomValue) {
+                        olMarginBottomSlider.value = config.olMarginBottom;
+                        olMarginBottomValue.textContent = `${config.olMarginBottom}px`;
+                    }
+                }
+                
+                // NEW: Anchor line height configuration
+                if (typeof config.anchorLineHeight === 'number') {
+                    document.documentElement.style.setProperty('--page-anchor-line-height', config.anchorLineHeight.toString());
+                    const anchorLineHeightSlider = document.getElementById('anchor-line-height-slider');
+                    const anchorLineHeightValue = document.getElementById('anchor-line-height-value');
+                    if (anchorLineHeightSlider && anchorLineHeightValue) {
+                        anchorLineHeightSlider.value = config.anchorLineHeight;
+                        anchorLineHeightValue.textContent = config.anchorLineHeight.toString();
                     }
                 }
                 
